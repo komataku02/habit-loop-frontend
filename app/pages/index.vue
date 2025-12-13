@@ -33,7 +33,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, onMounted, watch } from 'vue';
 
 //仮の習慣リスト(あとでAPIやローカル保存に差し替える)
 type Habit = {
@@ -41,6 +41,9 @@ type Habit = {
     name: string
     done: boolean
 }
+
+//保存に使うキー名(好みでOK)
+const STORAGE_KEY = 'habit-loop:habits'
 
 //ref(...)でリアクティブな変数を作成
 const habits = ref<Habit[]>([
@@ -56,8 +59,41 @@ const todayLabel = computed(() => {
     const m = d.getMonth() + 1
     const day = d.getDate()
     const weekdays = ['日', '月', '火', '水', '木', '金', '土'][d.getDay()]
-    return `${y}年${m}月${day}日(${weekdays})`
+    return `${y}/${m}/${day}(${weekdays})`
 });
+
+// マウント時に localStorage から読み込み＆変更を監視して保存
+onMounted(() => {
+    // SSR 対策
+    if (typeof window === 'undefined') return
+
+    // 1) 保存済みデータがあれば読み込む
+    const raw = window.localStorage.getItem(STORAGE_KEY)
+    if (raw) {
+        try {
+            const parsed = JSON.parse(raw) as Habit[]
+            if (Array.isArray(parsed)) {
+                habits.value = parsed.map((h, index) => ({
+                id: h.id ?? index + 1,
+                name: h.name ?? '',
+                done: !!h.done,
+                }))
+            }
+        } catch (e) {
+        console.error('failed to parse habits from storage', e)
+        }
+    }
+
+    // 2) habits が変わるたびに保存
+    watch(
+        habits,
+        (value) => {
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(value))
+        },
+        { deep: true }
+    )
+})
+
 
 //チェックボックスを押したときにdoneをトグル
 const toggleHabit = (id: number) => {
