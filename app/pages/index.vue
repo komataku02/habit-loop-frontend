@@ -35,14 +35,23 @@
                     class="habit-item"
                     :class="{ 'habit-item--done': habit.done}"
                 >
-                    <label class="habit-label">
-                        <input
-                            type="checkbox"
-                            class="habit-checkbox"
-                            :checked="habit.done"
-                            @change="toggleHabit(habit.id)"></input>
-                        <span class="habit-name">{{ habit.name }}</span>
-                    </label>
+                    <div class="habit-row">
+                        <label class="habit-label">
+                            <input
+                                type="checkbox"
+                                class="habit-checkbox"
+                                :checked="habit.done"
+                                @change="toggleHabit(habit.id)"></input>
+                            <span class="habit-name">{{ habit.name }}</span>
+                        </label>
+
+                        <button
+                            type="button"
+                            class="habit-delete"
+                            @click="removeHabit(habit.id)">
+                        ✕
+                        </button>
+                    </div>
                 </li>
             </ul>
         </section>
@@ -142,6 +151,12 @@ const toggleHabit = (id: number) => {
     habits.value = habits.value.map((h) =>
         h.id === id ? { ...h, done: !h.done } : h
     )
+}
+
+//習慣を削除する処理
+const removeHabit = ( id: number) => {
+    habits.value = habits.value.filter((h) =>
+        h.id !== id)
 }
 </script>
 
@@ -280,7 +295,7 @@ const toggleHabit = (id: number) => {
 .add-button {
     padding: 8px 12px;
     border: 1px solid #7e6bf2;
-    border-radius: 999px;
+    border-radius: 8px;
     background: #9b8cf7;
     color: #0d1020;
     font-size: 13px;
@@ -291,5 +306,27 @@ const toggleHabit = (id: number) => {
 .add-button:disabled {
     opacity: 0.6;
     cursor: not-allowed;
+}
+
+.habit-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+}
+
+.habit-delete {
+    background: transparent;
+    border: none;
+    color: #6b7280;
+    font-size: 14px;
+    padding: 2px 4px;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.habit-delete:hover {
+    background: #111827;
+    color: #f97373;
 }
 </style>
