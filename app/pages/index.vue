@@ -6,6 +6,23 @@
             <p class="today">今日：{{ todayLabel }}</p>
         </header>
 
+        <section class="add-card">
+            <h2 class="add-title">習慣を追加</h2>
+            <form class="add-form" @submit.prevent="handleAddHabit">
+                <input
+                    v-model="newHabitName"
+                    type="text"
+                    class="add-input"
+                    placeholder="例) 日記を書く">
+                </input>
+                <button type="submit"
+                    class="add-button"
+                    :disabled="!newHabitName.trim()">
+                    追加
+                </button>
+            </form>
+        </section>
+
         <section class="card">
             <header class="card-header">
                 <h2 class="card-title">今日の習慣</h2>
@@ -51,6 +68,31 @@ const habits = ref<Habit[]>([
     { id: 2, name: '水を1リットル飲む', done: false },
     { id: 3, name: '読書を15分する', done: false },
 ])
+
+//フォーム用の入力値
+const newHabitName = ref('')
+
+//新しい習慣を追加する処理
+const handleAddHabit = () => {
+    const name = newHabitName.value.trim()
+    if (!name) return
+    //idはひとまず「今ある最大＋１」でOK(簡易版)
+    const nextId =
+        habits.value.length > 0
+            ? Math.max(...habits.value.map((h) => h.id)) + 1
+            : 1
+
+    habits.value = [
+        ...habits.value,
+        {
+            id: nextId,
+            name,
+            done: false,
+        }
+    ]
+    //追加後は入力欄を殻にする
+    newHabitName.value = ''
+}
 
 //今日の日付をラベル用に整形
 const todayLabel = computed(() => {
@@ -199,5 +241,55 @@ const toggleHabit = (id: number) => {
 
 .habit-name {
     font-size: 18px;
+}
+
+.add-card {
+    margin-top: 16px;
+    margin-bottom: 12px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: #020617;
+    border: 1px solid #1f2937;
+}
+
+.add-title {
+    margin: 0 0 8px;
+    font-size: 16px;
+    font-weight: 700;
+}
+
+.add-form {
+    display: flex;
+    gap: 8px;
+}
+
+.add-input {
+    flex: 1;
+    padding: 8px 10px;
+    border: 1px solid #1f2937;
+    border-radius: 8px;
+    background: #020617;
+    color: #e5e7eb;
+    font-size: 14px;
+}
+
+.add-input::placeholder {
+    color: #6b7280;
+}
+
+.add-button {
+    padding: 8px 12px;
+    border: 1px solid #7e6bf2;
+    border-radius: 999px;
+    background: #9b8cf7;
+    color: #0d1020;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.add-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
 }
 </style>
