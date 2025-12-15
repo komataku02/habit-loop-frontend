@@ -25,8 +25,22 @@
 
         <section class="card">
             <header class="card-header">
-                <h2 class="card-title">今日の習慣</h2>
-                <p class="card-caption">完了したものにチェックをつけてください。</p>
+                <div>
+                    <h2 class="card-title">今日の習慣</h2>
+                    <p class="card-caption">完了したものにチェックをつけてください。</p>
+                </div>
+
+                <div class="card-summary" v-if="totalCount > 0">
+                    <p class="card-progress">
+                        完了: {{  doneCount }} / {{ totalCount }} ({{ completionRate }}%)
+                    </p>
+                    <div class="progress-bar">
+                        <div
+                            class="progress-bar-inner"
+                            :style="{ width: completionRate + '%'}">
+                        </div>
+                    </div>
+                </div>
             </header>
             <ul class="habit-list">
                 <li
@@ -112,6 +126,16 @@ const todayLabel = computed(() => {
     const weekdays = ['日', '月', '火', '水', '木', '金', '土'][d.getDay()]
     return `${y}/${m}/${day}(${weekdays})`
 });
+
+const totalCount = computed(() => habits.value.length)
+
+const doneCount = computed(() =>
+    habits.value.filter((h) => h.done).length
+)
+const completionRate = computed(() => {
+    if (totalCount.value === 0) return 0
+    return Math.round((doneCount.value / totalCount.value) * 100)
+})
 
 // マウント時に localStorage から読み込み＆変更を監視して保存
 onMounted(() => {
@@ -328,5 +352,32 @@ const removeHabit = ( id: number) => {
 .habit-delete:hover {
     background: #111827;
     color: #f97373;
+}
+
+.card-summary {
+    min-width: 160px;
+    margin-left: 12px;
+}
+
+.card-progress {
+    margin: 0 0 4px;
+    font-size: 12px;
+    color: #e5e7ed;
+    text-align: right;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 6px;
+    border-radius: 8px;
+    background: #111827;
+    overflow: hidden;
+}
+
+.progress-bar-inner {
+    height: 100%;
+    border-radius: inherit;
+    background: #22c55e;
+    transition: width 0.15s ease;
 }
 </style>
