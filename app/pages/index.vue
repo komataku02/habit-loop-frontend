@@ -50,21 +50,61 @@
                     :class="{ 'habit-item--done': habit.done}"
                 >
                     <div class="habit-row">
-                        <label class="habit-label">
+                        <!-- 編集中かどうかで表示を切り替え -->
+                        <template v-if="editingId === habit.id">
+                            <!-- 編集モード -->
                             <input
-                                type="checkbox"
-                                class="habit-checkbox"
-                                :checked="habit.done"
-                                @change="toggleHabit(habit.id)"></input>
-                            <span class="habit-name">{{ habit.name }}</span>
-                        </label>
+                                v-model="editingName"
+                                type="text"
+                                class="habit-edit-input"
+                            />
+                            <div class="habit-edit-actions">
+                                <button
+                                    type="button"
+                                    class="habit-edit-save"
+                                    @click="saveEdit(habit.id)"
+                                >
+                                    保存
+                                </button>
+                                <button
+                                    type="button"
+                                    class="habit-edit-cancel"
+                                    @click="cancelEdit"
+                                >
+                                    キャンセル
+                                </button>
+                            </div>
+                        </template>
 
-                        <button
-                            type="button"
-                            class="habit-delete"
-                            @click="removeHabit(habit.id)">
-                        ✕
-                        </button>
+                        <template v-else>
+                            <!-- 通常モード -->
+                            <label class="habit-label">
+                                <input
+                                    type="checkbox"
+                                    class="habit-checkbox"
+                                    :checked="habit.done"
+                                    @change="toggleHabit(habit.id)"
+                                />
+                                <span class="habit-name">{{ habit.name }}</span>
+                            </label>
+
+                            <div class="habit-actions">
+                                <button
+                                    type="button"
+                                    class="habit-edit-button"
+                                    @click="startEdit(habit)"
+                                >
+                                    編集
+                                </button>
+                                <button
+                                    type="button"
+                                    class="habit-delete"
+                                    @click="removeHabit(habit.id)"
+                                >
+                                    ✕
+                                </button>
+                            </div>
+                        </template>
                     </div>
                 </li>
             </ul>
@@ -175,6 +215,33 @@ const toggleHabit = (id: number) => {
     habits.value = habits.value.map((h) =>
         h.id === id ? { ...h, done: !h.done } : h
     )
+}
+
+const editingId = ref<number | null>(null) //いま編集中の習慣ID
+const editingName = ref('') //編集用の入力値
+
+//編集開始の処理
+const startEdit = (habit: Habit) => {
+    editingId.value = habit.id
+    editingName.value = habit.name
+}
+
+//編集をキャンセル
+const cancelEdit = () => {
+    editingId.value = null
+    editingName.value = ''
+}
+
+//編集内容を保存
+const saveEdit = (id: number) => {
+    const name = editingName.value.trim()
+    if (!name) return
+
+    habits.value = habits.value.map((h) =>
+        h.id === id ? { ...h, name} : h
+    )
+    editingId.value = null
+    editingName.value = ''
 }
 
 //習慣を削除する処理
@@ -379,5 +446,61 @@ const removeHabit = ( id: number) => {
     border-radius: inherit;
     background: #22c55e;
     transition: width 0.15s ease;
+}
+
+.habit-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.habit-edit-button {
+    background: transparent;
+    border: 1px solid #374152;
+    color: #e5e7eb;
+    font-size: 12px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.habit-edit-button:hover {
+    background: #111827;
+}
+
+.habit-edit-input {
+    flex: 1;
+    padding: 6px 8px;
+    border-radius: 8px;
+    border: 1px solid #374151;
+    background: #020617;
+    color: #e5e7eb;
+    font-size: 14px;
+}
+
+.habit-edit-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.habit-edit-save,
+.habit-edit-cancel {
+    font-size: 12px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    border: 1px solid transparent;
+}
+
+.habit-edit-save {
+    background: #22c55e;
+    border-color: #16a34a;
+    color: #022c22;
+}
+
+.habit-edit-cancel {
+    background: transparent;
+    border-color: #4b5563;
+    color: #e5e7eb;
 }
 </style>
