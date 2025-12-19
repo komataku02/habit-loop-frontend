@@ -109,6 +109,31 @@
                 </li>
             </ul>
         </section>
+
+        <section class="card weekly-card">
+            <header class="weekly-header">
+                <h2 class="weekly-title">今週の達成状況</h2>
+                <p class="weekly-caption">ダミーデータで表示中。あとで実データとつなぎます。</p>
+            </header>
+
+            <ul class="weekly-list">
+                <li
+                    v-for="day in weeklySummary"
+                    :key="day.label"
+                    class="weekly-item"
+                >
+                    <span class="weekly-label">{{  day.label }}</span>
+                    <div class="weekly-bar">
+                        <div
+                            class="weekly-bar-inner"
+                            :style="{ width: day.rate + '%' }">
+                        </div>
+                    </div>
+
+                    <span class="weekly-rate">{{ day.rate }}%</span>
+                </li>
+            </ul>
+        </section>
     </main>
 </template>
 
@@ -249,6 +274,19 @@ const removeHabit = ( id: number) => {
     habits.value = habits.value.filter((h) =>
         h.id !== id)
 }
+
+//習慣サマリー(ダミーデータ)
+//rateは0~100の達成率
+const weeklySummary = ref<{ label: string; rate: number }[]>([
+    { label: '月', rate: 80 },
+    { label: '火', rate: 60 },
+    { label: '水', rate: 100 },
+    { label: '木', rate: 40 },
+    { label: '金', rate: 0 },
+    { label: '土', rate: 50 },
+    { label: '日', rate: 70 },
+
+])
 </script>
 
 <style scoped>
@@ -503,4 +541,65 @@ const removeHabit = ( id: number) => {
     border-color: #4b5563;
     color: #e5e7eb;
 }
+
+.weekly-card {
+    margin-top: 16px;
+}
+
+.weekly-header {
+    margin-bottom: 10px;
+}
+
+.weekly-title {
+    margin: 0 0 4px;
+    font-size: 16px;
+    font-weight: 700;
+}
+
+.weekly-caption {
+    margin: 0;
+    font-size: 12px;
+    color: #9ca3af;
+}
+
+.weekly-list {
+    list-style: none;
+    padding: 0;
+    margin: 8px 0 0;
+    display: grid;
+    gap: 6px;
+}
+
+.weekly-item {
+    display: grid;
+    grid-template-columns: 32px 1fr 40px;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+}
+
+.weekly-label {
+    color: #e5e7eb;
+}
+
+.weekly-bar {
+    position: relative;
+    height: 6px;
+    border-radius: 999px;
+    background: #111827;
+    overflow: hidden;
+}
+
+.weekly-bar-inner {
+    height: 100%;
+    border-radius: inherit;
+    background: #22c55e;
+    transition: width 0.15s ease;
+}
+
+.weekly-rate {
+    text-align: right;
+    color: #9ca3af;
+}
+
 </style>
