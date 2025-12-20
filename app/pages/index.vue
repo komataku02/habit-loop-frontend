@@ -160,6 +160,21 @@ const habits = ref<Habit[]>([
 //フォーム用の入力値
 const newHabitName = ref('')
 
+//日付文字列YYYY/MM/DDを返すヘルパー
+const getTodayKey = () => {
+    const d = new Date()
+    const y = d.getFullYear()
+    const m = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    return `${y}/${m}/${day}`
+}
+
+//保存用のフォーマット v2
+type HabitStorageV2 = {
+    lastDate: string
+    habits: Habit[]
+}
+
 //新しい習慣を追加する処理
 const handleAddHabit = () => {
     const name = newHabitName.value.trim()
@@ -211,12 +226,31 @@ onMounted(() => {
     const raw = window.localStorage.getItem(STORAGE_KEY)
     if (raw) {
         try {
-            const parsed = JSON.parse(raw) as Habit[]
+            const parsed = JSON.parse(raw) as Habit[] | HabitStorageV2
             if (Array.isArray(parsed)) {
+                //旧フォーマット:日付なし→習慣だけ読み込み&doneはリセット
                 habits.value = parsed.map((h, index) => ({
                 id: h.id ?? index + 1,
                 name: h.name ?? '',
                 done: !!h.done,
+                }))
+            } else if (
+                parsed &&
+                typeof parsed === 'object' &&
+                Array.isArray(parsed.habits)
+            ) {
+                //新フォーマット日付あり
+                const storedDate: string | undefined = parsed.lastDate
+                const baseHabits: Habit[] = parsed.habits
+                //日付が変わっていたらdoneをリセット
+                const today = getTodayKey()
+                const shouldReset = storedDate !== today
+
+                habits.value = baseHabits.map((h, index) => ({
+                    id: h.id ?? index + 1,
+                    name: h.name ?? '',
+                    //日付が変わっていたら全て未完了に、それ以外は保存されていた状態を使う
+                    done: shouldReset ? false : !!h.done,
                 }))
             }
         } catch (e) {
@@ -228,7 +262,11 @@ onMounted(() => {
     watch(
         habits,
         (value) => {
-        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(value))
+            const payload: HabitStorageV2 = {
+                lastDate: getTodayKey(),
+                habits: value,
+            }
+            window.localStorage.setItem(STORAGE_KEY, JSON.stringify(payload))
         },
         { deep: true }
     )
