@@ -40,11 +40,18 @@
                             :style="{ width: completionRate + '%'}">
                         </div>
                     </div>
+
+                    <label class="hide-done-toggle">
+                        <input
+                            type="checkbox"
+                            v-model="hideDone"></input>
+                            完了した習慣を隠す
+                    </label>
                 </div>
             </header>
             <ul class="habit-list">
                 <li
-                    v-for="habit in habits"
+                    v-for="habit in visibleHabits"
                     :key="habit.id"
                     class="habit-item"
                     :class="{ 'habit-item--done': habit.done}"
@@ -215,6 +222,22 @@ const doneCount = computed(() =>
 const completionRate = computed(() => {
     if (totalCount.value === 0) return 0
     return Math.round((doneCount.value / totalCount.value) * 100)
+})
+
+//完了した習慣を隠すかどうか
+const hideDone = ref(false)
+
+//表示用の「並び替え+フィルター済みリスト」
+const visibleHabits = computed(() => {
+    //false(0)が先に、true(1)が後ろ→未完了が上、完了が下
+    const sorted = [...habits.value].sort((a, b) => {
+        return Number(a.done) - Number(b.done)
+    })
+    //hideDoneがtrueなら完了済みを除外
+    if (hideDone.value) {
+        return sorted.filter((h) => !h.done)
+    }
+    return sorted
 })
 
 // マウント時に localStorage から読み込み＆変更を監視して保存
@@ -639,5 +662,20 @@ const weeklySummary = ref<{ label: string; rate: number }[]>([
     text-align: right;
     color: #9ca3af;
 }
+
+.hide-done-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    color: #9ca3af;
+    margin-top: 4px;
+}
+
+.hide-done-toggle input {
+    width: 12px;
+    height: 12px;
+}
+
 
 </style>
