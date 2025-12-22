@@ -156,6 +156,21 @@ type Habit = {
 
 //保存に使うキー名(好みでOK)
 const STORAGE_KEY = 'habit-loop:habits'
+//週次サマリー用の履歴キー
+const HISTORY_KEY = 'habit-loop:history'
+//１日分の履歴
+type DayHistory = {
+    total: number
+    done: number
+}
+
+type WeeklySummaryItem = {
+    label: string
+    rate: number
+}
+
+//日付ごとの履歴を持っておく
+const historyByDate = ref<Record<string, DayHistory>>({})
 
 //ref(...)でリアクティブな変数を作成
 const habits = ref<Habit[]>([
@@ -167,13 +182,17 @@ const habits = ref<Habit[]>([
 //フォーム用の入力値
 const newHabitName = ref('')
 
-//日付文字列YYYY/MM/DDを返すヘルパー
-const getTodayKey = () => {
-    const d = new Date()
+//任意の日付をYYYY/MM/DD形式にする
+const formatDateKey = (d: Date) => {
     const y = d.getFullYear()
     const m = String(d.getMonth() + 1).padStart(2, '0')
     const day = String(d.getDate()).padStart(2, '0')
     return `${y}/${m}/${day}`
+}
+
+//今日の日付キーを返す
+const getTodayKey = () => {
+    return formatDateKey(new Date())
 }
 
 //保存用のフォーマット v2
@@ -281,6 +300,19 @@ onMounted(() => {
         }
     }
 
+    //履歴読み込み
+    const historyRaw = window.localStorage.getItem(HISTORY_KEY)
+    if (historyRaw) {
+        try {
+            const parsed = JSON.parse(historyRaw) as Record<string, DayHistory>
+            if (parsed && typeof parsed === 'object') {
+                historyByDate.value = parsed
+            }
+        } catch (e) {
+            console.error('failed to parse history from storage', e)
+        }
+    }
+
     // 2) habits が変わるたびに保存
     watch(
         habits,
@@ -290,6 +322,18 @@ onMounted(() => {
                 habits: value,
             }
             window.localStorage.setItem(STORAGE_KEY, JSON.stringify(payload))
+
+            //履歴の保存(今日のtotal/doneを記録)
+            const todayKey = getTodayKey()
+            const total = value.length
+            const done = value.filter((h) => h.done).length
+
+            const nextHistory: Record<string, DayHistory> = {
+                ...historyByDate.value,
+                [todayKey]: { total, done },
+            }
+            historyByDate.value = nextHistory
+            window.localStorage.setItem(HISTORY_KEY, JSON.stringify(nextHistory))
         },
         { deep: true }
     )
@@ -336,18 +380,34 @@ const removeHabit = ( id: number) => {
         h.id !== id)
 }
 
-//習慣サマリー(ダミーデータ)
-//rateは0~100の達成率
-const weeklySummary = ref<{ label: string; rate: number }[]>([
-    { label: '月', rate: 80 },
-    { label: '火', rate: 60 },
-    { label: '水', rate: 100 },
-    { label: '木', rate: 40 },
-    { label: '金', rate: 0 },
-    { label: '土', rate: 50 },
-    { label: '日', rate: 70 },
+//今週の達成状況を計算
+const weeklySummary = computed<WeeklySummaryItem[]>(() => {
+    const result: WeeklySummaryItem[] = []
+    const today = new Date()
+    const todayDow = today.getDay() // 0: 日 ~ 6: 土
+    const diffFromMonday = (todayDow + 6) % 7 // 月 = 0 に直す
 
-])
+    // i = 0 → 月, 6 → 日
+    for (let i = 0; i < 7; i++) {
+        const d = new Date()
+        d.setDate(today.getDate() - diffFromMonday + i)
+
+        const key = formatDateKey(d)
+        const history = historyByDate.value[key]
+        const total = history?.total ?? 0
+        const done = history?.done ?? 0
+        const rate = total === 0 ? 0 : Math.round((done / total) * 100)
+        const weekdayLabel = (['月', '火', '水', '木', '金', '土', '日'][i] ?? '')
+
+        result.push({
+            label: weekdayLabel,
+            rate,
+        })
+    }
+
+    return result
+})
+
 </script>
 
 <style scoped>
