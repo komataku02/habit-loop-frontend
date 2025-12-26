@@ -1,741 +1,579 @@
 <template>
-    <main class="page">
-        <header class="page-header">
-            <h1 class="app-title"> Habit Loop（仮）</h1>
-            <p class="app-subtitle">毎日の小さな習慣を、見える化しよう。</p>
-            <p class="today">今日：{{ todayLabel }}</p>
-        </header>
+  <main class="page">
+    <header class="page-header">
+      <div class="page-header__left">
+        <h1 class="app-title">Habit Loop（仮）</h1>
+        <p class="app-subtitle">毎日の小さな習慣を、見える化しよう。</p>
+        <p class="today">今日：{{ todayLabel }}</p>
+      </div>
 
-        <section class="add-card">
-            <h2 class="add-title">習慣を追加</h2>
-            <form class="add-form" @submit.prevent="handleAddHabit">
+      <NuxtLink to="/history" class="nav-link">履歴を見る</NuxtLink>
+    </header>
+
+    <!-- 追加 -->
+    <section class="card add-card">
+      <header class="card-header">
+        <h2 class="card-title">習慣を追加</h2>
+        <p class="card-caption">例：学習30分、ストレッチ、早起き など</p>
+      </header>
+
+      <form class="add-form" @submit.prevent="handleAddHabit">
+        <input
+          v-model="newHabitName"
+          type="text"
+          class="add-input"
+          placeholder="習慣名を入力"
+          maxlength="30"
+          autocomplete="off"
+        />
+        <button class="add-button" type="submit" :disabled="isAddDisabled">追加</button>
+      </form>
+      <p class="add-help">※ 1〜30文字 / 追加後にチェックで達成を記録できます。</p>
+    </section>
+
+    <!-- 今日の達成状況 -->
+    <section class="card">
+      <header class="card-header card-header--row">
+        <div>
+          <h2 class="card-title">今日の達成状況</h2>
+          <p class="card-caption">チェックを入れると達成率と履歴が更新されます。</p>
+
+          <label class="hide-done-toggle">
+            <input v-model="hideDone" type="checkbox" />
+            完了した習慣を隠す
+          </label>
+        </div>
+
+        <div class="card-summary" v-if="totalCount > 0">
+          <p class="summary-rate">{{ completionRate }}%</p>
+          <p class="summary-meta">完了: {{ doneCount }} / {{ totalCount }}</p>
+          <div class="bar">
+            <div class="bar-inner" :style="{ width: completionRate + '%' }" />
+          </div>
+
+          <div class="streak">
+            <div class="streak-item">
+              <p class="streak-num">{{ currentStreak }}</p>
+              <p class="streak-label">連続達成</p>
+            </div>
+            <div class="streak-item">
+              <p class="streak-num">{{ bestStreak }}</p>
+              <p class="streak-label">最長</p>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <ul class="habit-list" v-if="visibleHabits.length > 0">
+        <li
+          v-for="habit in visibleHabits"
+          :key="habit.id"
+          class="habit-item"
+          :class="{ 'habit-item--done': habit.done }"
+        >
+          <div class="habit-row">
+            <div class="habit-left">
+              <input
+                class="habit-checkbox"
+                type="checkbox"
+                :checked="habit.done"
+                @change="toggleHabit(habit.id)"
+              />
+
+              <template v-if="editingId === habit.id">
                 <input
-                    v-model="newHabitName"
-                    type="text"
-                    class="add-input"
-                    placeholder="例) 日記を書く">
-                </input>
-                <button type="submit"
-                    class="add-button"
-                    :disabled="!newHabitName.trim()">
-                    追加
-                </button>
-            </form>
-        </section>
+                  v-model="editingName"
+                  class="edit-input"
+                  type="text"
+                  maxlength="30"
+                  autocomplete="off"
+                />
+              </template>
+              <template v-else>
+                <p class="habit-name">{{ habit.name }}</p>
+              </template>
+            </div>
 
-        <section class="card">
-            <header class="card-header">
-                <div>
-                    <h2 class="card-title">今日の習慣</h2>
-                    <p class="card-caption">完了したものにチェックをつけてください。</p>
-                </div>
+            <div class="habit-actions">
+              <template v-if="editingId === habit.id">
+                <button class="habit-action" type="button" @click="saveEdit(habit.id)">保存</button>
+                <button class="habit-action ghost" type="button" @click="cancelEdit">キャンセル</button>
+              </template>
+              <template v-else>
+                <button class="habit-action" type="button" @click="startEdit(habit)">編集</button>
+                <button class="habit-delete" type="button" @click="removeHabit(habit.id)">✕</button>
+              </template>
+            </div>
+          </div>
+        </li>
+      </ul>
 
-                <div class="card-summary" v-if="totalCount > 0">
-                    <p class="card-progress">
-                        完了: {{  doneCount }} / {{ totalCount }} ({{ completionRate }}%)
-                    </p>
-                    <div class="progress-bar">
-                        <div
-                            class="progress-bar-inner"
-                            :style="{ width: completionRate + '%'}">
-                        </div>
-                    </div>
+      <p v-else class="empty">まだ習慣がありません。上のフォームから追加してください。</p>
+    </section>
 
-                    <label class="hide-done-toggle">
-                        <input
-                            type="checkbox"
-                            v-model="hideDone"></input>
-                            完了した習慣を隠す
-                    </label>
-                </div>
-            </header>
-            <ul class="habit-list">
-                <li
-                    v-for="habit in visibleHabits"
-                    :key="habit.id"
-                    class="habit-item"
-                    :class="{ 'habit-item--done': habit.done}"
-                >
-                    <div class="habit-row">
-                        <!-- 編集中かどうかで表示を切り替え -->
-                        <template v-if="editingId === habit.id">
-                            <!-- 編集モード -->
-                            <input
-                                v-model="editingName"
-                                type="text"
-                                class="habit-edit-input"
-                            />
-                            <div class="habit-edit-actions">
-                                <button
-                                    type="button"
-                                    class="habit-edit-save"
-                                    @click="saveEdit(habit.id)"
-                                >
-                                    保存
-                                </button>
-                                <button
-                                    type="button"
-                                    class="habit-edit-cancel"
-                                    @click="cancelEdit"
-                                >
-                                    キャンセル
-                                </button>
-                            </div>
-                        </template>
+    <!-- 週間サマリー -->
+    <section class="card weekly-card">
+      <header class="card-header">
+        <h2 class="card-title">今週の達成率</h2>
+        <p class="card-caption">今週（月〜日）の達成率です（履歴データから算出）。</p>
+      </header>
 
-                        <template v-else>
-                            <!-- 通常モード -->
-                            <label class="habit-label">
-                                <input
-                                    type="checkbox"
-                                    class="habit-checkbox"
-                                    :checked="habit.done"
-                                    @change="toggleHabit(habit.id)"
-                                />
-                                <span class="habit-name">{{ habit.name }}</span>
-                            </label>
-
-                            <div class="habit-actions">
-                                <button
-                                    type="button"
-                                    class="habit-edit-button"
-                                    @click="startEdit(habit)"
-                                >
-                                    編集
-                                </button>
-                                <button
-                                    type="button"
-                                    class="habit-delete"
-                                    @click="removeHabit(habit.id)"
-                                >
-                                    ✕
-                                </button>
-                            </div>
-                        </template>
-                    </div>
-                </li>
-            </ul>
-        </section>
-
-        <section class="card weekly-card">
-            <header class="weekly-header">
-                <h2 class="weekly-title">今週の達成状況</h2>
-                <p class="weekly-caption">ダミーデータで表示中。あとで実データとつなぎます。</p>
-            </header>
-
-            <ul class="weekly-list">
-                <li
-                    v-for="day in weeklySummary"
-                    :key="day.label"
-                    class="weekly-item"
-                >
-                    <span class="weekly-label">{{  day.label }}</span>
-                    <div class="weekly-bar">
-                        <div
-                            class="weekly-bar-inner"
-                            :style="{ width: day.rate + '%' }">
-                        </div>
-                    </div>
-
-                    <span class="weekly-rate">{{ day.rate }}%</span>
-                </li>
-            </ul>
-        </section>
-    </main>
+      <div class="weekly-grid">
+        <div v-for="w in weeklySummary" :key="w.label" class="weekly-item">
+          <div class="weekly-top">
+            <p class="weekly-label">{{ w.label }}</p>
+            <p class="weekly-rate">{{ w.rate }}%</p>
+          </div>
+          <div class="bar">
+            <div class="bar-inner" :style="{ width: w.rate + '%' }" />
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted, watch } from 'vue';
+import { computed, onMounted, ref } from 'vue';
+import { useHabitLoopStore, type Habit } from '~/stores/habitLoop';
 
-//仮の習慣リスト(あとでAPIやローカル保存に差し替える)
-type Habit = {
-    id: number
-    name: string
-    done: boolean
-}
+const store = useHabitLoopStore();
 
-//保存に使うキー名(好みでOK)
-const STORAGE_KEY = 'habit-loop:habits'
-//週次サマリー用の履歴キー
-const HISTORY_KEY = 'habit-loop:history'
-//１日分の履歴
-type DayHistory = {
-    total: number
-    done: number
-}
-
-type WeeklySummaryItem = {
-    label: string
-    rate: number
-}
-
-//日付ごとの履歴を持っておく
-const historyByDate = ref<Record<string, DayHistory>>({})
-
-//ref(...)でリアクティブな変数を作成
-const habits = ref<Habit[]>([
-    { id: 1, name: '朝のストレッチ', done: false },
-    { id: 2, name: '水を1リットル飲む', done: false },
-    { id: 3, name: '読書を15分する', done: false },
-])
-
-//フォーム用の入力値
-const newHabitName = ref('')
-
-//任意の日付をYYYY/MM/DD形式にする
-const formatDateKey = (d: Date) => {
-    const y = d.getFullYear()
-    const m = String(d.getMonth() + 1).padStart(2, '0')
-    const day = String(d.getDate()).padStart(2, '0')
-    return `${y}/${m}/${day}`
-}
-
-//今日の日付キーを返す
-const getTodayKey = () => {
-    return formatDateKey(new Date())
-}
-
-//保存用のフォーマット v2
-type HabitStorageV2 = {
-    lastDate: string
-    habits: Habit[]
-}
-
-//新しい習慣を追加する処理
-const handleAddHabit = () => {
-    const name = newHabitName.value.trim()
-    if (!name) return
-    //idはひとまず「今ある最大＋１」でOK(簡易版)
-    const nextId =
-        habits.value.length > 0
-            ? Math.max(...habits.value.map((h) => h.id)) + 1
-            : 1
-
-    habits.value = [
-        ...habits.value,
-        {
-            id: nextId,
-            name,
-            done: false,
-        }
-    ]
-    //追加後は入力欄を殻にする
-    newHabitName.value = ''
-}
-
-//今日の日付をラベル用に整形
-const todayLabel = computed(() => {
-    const d = new Date()
-    const y = d.getFullYear()
-    const m = d.getMonth() + 1
-    const day = d.getDate()
-    const weekdays = ['日', '月', '火', '水', '木', '金', '土'][d.getDay()]
-    return `${y}/${m}/${day}(${weekdays})`
+onMounted(() => {
+  // pluginで init 済みでもOK（ガードしているので二重呼びでも問題なし）
+  store.init();
 });
 
-const totalCount = computed(() => habits.value.length)
+const newHabitName = ref('');
+const hideDone = ref(false);
 
-const doneCount = computed(() =>
-    habits.value.filter((h) => h.done).length
-)
-const completionRate = computed(() => {
-    if (totalCount.value === 0) return 0
-    return Math.round((doneCount.value / totalCount.value) * 100)
-})
+const editingId = ref<number | null>(null);
+const editingName = ref('');
 
-//完了した習慣を隠すかどうか
-const hideDone = ref(false)
+const habits = computed(() => store.habits);
+const totalCount = computed(() => store.totalCount);
+const doneCount = computed(() => store.doneCount);
+const completionRate = computed(() => store.completionRate);
+const weeklySummary = computed(() => store.weeklySummary);
+const currentStreak = computed(() => store.currentStreak);
+const bestStreak = computed(() => store.bestStreak);
 
-//表示用の「並び替え+フィルター済みリスト」
 const visibleHabits = computed(() => {
-    //false(0)が先に、true(1)が後ろ→未完了が上、完了が下
-    const sorted = [...habits.value].sort((a, b) => {
-        return Number(a.done) - Number(b.done)
-    })
-    //hideDoneがtrueなら完了済みを除外
-    if (hideDone.value) {
-        return sorted.filter((h) => !h.done)
-    }
-    return sorted
-})
+  const sorted = [...habits.value].sort((a, b) => Number(a.done) - Number(b.done));
+  return hideDone.value ? sorted.filter((h) => !h.done) : sorted;
+});
 
-// マウント時に localStorage から読み込み＆変更を監視して保存
-onMounted(() => {
-    // SSR 対策
-    if (typeof window === 'undefined') return
+const isAddDisabled = computed(() => {
+  const v = newHabitName.value.trim();
+  return v.length === 0 || v.length > 30;
+});
 
-    // 1) 保存済みデータがあれば読み込む
-    const raw = window.localStorage.getItem(STORAGE_KEY)
-    if (raw) {
-        try {
-            const parsed = JSON.parse(raw) as Habit[] | HabitStorageV2
-            if (Array.isArray(parsed)) {
-                //旧フォーマット:日付なし→習慣だけ読み込み&doneはリセット
-                habits.value = parsed.map((h, index) => ({
-                id: h.id ?? index + 1,
-                name: h.name ?? '',
-                done: !!h.done,
-                }))
-            } else if (
-                parsed &&
-                typeof parsed === 'object' &&
-                Array.isArray(parsed.habits)
-            ) {
-                //新フォーマット日付あり
-                const storedDate: string | undefined = parsed.lastDate
-                const baseHabits: Habit[] = parsed.habits
-                //日付が変わっていたらdoneをリセット
-                const today = getTodayKey()
-                const shouldReset = storedDate !== today
+const handleAddHabit = () => {
+  store.addHabit(newHabitName.value);
+  newHabitName.value = '';
+};
 
-                habits.value = baseHabits.map((h, index) => ({
-                    id: h.id ?? index + 1,
-                    name: h.name ?? '',
-                    //日付が変わっていたら全て未完了に、それ以外は保存されていた状態を使う
-                    done: shouldReset ? false : !!h.done,
-                }))
-            }
-        } catch (e) {
-        console.error('failed to parse habits from storage', e)
-        }
-    }
+const toggleHabit = (id: number) => store.toggleHabit(id);
+const removeHabit = (id: number) => store.removeHabit(id);
 
-    //履歴読み込み
-    const historyRaw = window.localStorage.getItem(HISTORY_KEY)
-    if (historyRaw) {
-        try {
-            const parsed = JSON.parse(historyRaw) as Record<string, DayHistory>
-            if (parsed && typeof parsed === 'object') {
-                historyByDate.value = parsed
-            }
-        } catch (e) {
-            console.error('failed to parse history from storage', e)
-        }
-    }
-
-    // 2) habits が変わるたびに保存
-    watch(
-        habits,
-        (value) => {
-            const payload: HabitStorageV2 = {
-                lastDate: getTodayKey(),
-                habits: value,
-            }
-            window.localStorage.setItem(STORAGE_KEY, JSON.stringify(payload))
-
-            //履歴の保存(今日のtotal/doneを記録)
-            const todayKey = getTodayKey()
-            const total = value.length
-            const done = value.filter((h) => h.done).length
-
-            const nextHistory: Record<string, DayHistory> = {
-                ...historyByDate.value,
-                [todayKey]: { total, done },
-            }
-            historyByDate.value = nextHistory
-            window.localStorage.setItem(HISTORY_KEY, JSON.stringify(nextHistory))
-        },
-        { deep: true }
-    )
-})
-
-
-//チェックボックスを押したときにdoneをトグル
-const toggleHabit = (id: number) => {
-    habits.value = habits.value.map((h) =>
-        h.id === id ? { ...h, done: !h.done } : h
-    )
-}
-
-const editingId = ref<number | null>(null) //いま編集中の習慣ID
-const editingName = ref('') //編集用の入力値
-
-//編集開始の処理
 const startEdit = (habit: Habit) => {
-    editingId.value = habit.id
-    editingName.value = habit.name
-}
+  editingId.value = habit.id;
+  editingName.value = habit.name;
+};
 
-//編集をキャンセル
 const cancelEdit = () => {
-    editingId.value = null
-    editingName.value = ''
-}
+  editingId.value = null;
+  editingName.value = '';
+};
 
-//編集内容を保存
 const saveEdit = (id: number) => {
-    const name = editingName.value.trim()
-    if (!name) return
+  store.renameHabit(id, editingName.value);
+  editingId.value = null;
+  editingName.value = '';
+};
 
-    habits.value = habits.value.map((h) =>
-        h.id === id ? { ...h, name} : h
-    )
-    editingId.value = null
-    editingName.value = ''
-}
-
-//習慣を削除する処理
-const removeHabit = ( id: number) => {
-    habits.value = habits.value.filter((h) =>
-        h.id !== id)
-}
-
-//今週の達成状況を計算
-const weeklySummary = computed<WeeklySummaryItem[]>(() => {
-    const result: WeeklySummaryItem[] = []
-    const today = new Date()
-    const todayDow = today.getDay() // 0: 日 ~ 6: 土
-    const diffFromMonday = (todayDow + 6) % 7 // 月 = 0 に直す
-
-    // i = 0 → 月, 6 → 日
-    for (let i = 0; i < 7; i++) {
-        const d = new Date()
-        d.setDate(today.getDate() - diffFromMonday + i)
-
-        const key = formatDateKey(d)
-        const history = historyByDate.value[key]
-        const total = history?.total ?? 0
-        const done = history?.done ?? 0
-        const rate = total === 0 ? 0 : Math.round((done / total) * 100)
-        const weekdayLabel = (['月', '火', '水', '木', '金', '土', '日'][i] ?? '')
-
-        result.push({
-            label: weekdayLabel,
-            rate,
-        })
-    }
-
-    return result
-})
-
+const todayLabel = computed(() => {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = d.getMonth() + 1;
+  const day = d.getDate();
+  const weekdays = ['日', '月', '火', '水', '木', '金', '土'][d.getDay()];
+  return `${y}/${m}/${day}(${weekdays})`;
+});
 </script>
 
 <style scoped>
 .page {
-    min-height: 100vh;
-    padding: 24px 16px 40px;
-    margin: 0 auto;
-    box-sizing: border-box;
-    background: #020617;
-    color: #e5e7eb;
-    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'SF Pro Text',
-    'Helvetica Neue', Arial, sans-serif;
-    width: min(960px, 100%);
+  min-height: 100vh;
+  padding: 24px 16px 40px;
+  margin: 0 auto;
+  box-sizing: border-box;
+  background: #020617;
+  color: #e5e7eb;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue',
+    Arial, sans-serif;
+  width: min(960px, 100%);
 }
 
+/* Header */
 .page-header {
-    margin-bottom: 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 18px;
 }
 
 .app-title {
-    font-size: 40px;
-    font-weight: 800;
-    margin: 0 0 4px;
+  font-size: 32px;
+  font-weight: 800;
+  margin: 0 0 4px;
 }
 
 .app-subtitle {
-    margin:0 0 8px;
-    font-size: 16px;
-    color: #9ca3af;
+  margin: 0;
+  font-size: 14px;
+  color: #9ca3af;
 }
 
 .today {
-    font-size: 24px;
-    color: #e5e7eb;
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: #9ca3af;
 }
 
+.nav-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid #374152;
+  color: #e5e7eb;
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.nav-link:hover {
+  background: #111827;
+}
+
+/* Card */
 .card {
-    margin-top: 12px;
-    padding: 14px 16px;
-    border-radius: 14px;
-    background: #020617;
-    border: 1px solid #1f2937;
-    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
+  margin-top: 12px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: #020617;
+  border: 1px solid #1f2937;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
 }
 
 .card-header {
-    margin-bottom: 10px;
+  margin-bottom: 10px;
+}
+
+.card-header--row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
 }
 
 .card-title {
-    margin: 0 0 4px;
-    font-size: 20px;
-    font-weight: 700;
+  margin: 0 0 4px;
+  font-size: 18px;
+  font-weight: 700;
 }
 
 .card-caption {
-    margin: 0;
-    font-size: 12px;
-    color: #9ca3af;
+  margin: 0;
+  font-size: 12px;
+  color: #9ca3af;
 }
 
-.habit-list {
-    list-style: none;
-    padding: 0;
-    margin: 8px 0 0;
-    display: grid;
-    gap: 6px;
-}
-
-.habit-item {
-    padding: 8px 10px;
-    border-radius: 10px;
-    border: 1px solid #1f2937;
-    background: #020617;
-    transition: background 0.15s ease, border-color 0.15s ease,
-    transform 0.1s ease;
-}
-
-.habit-item--done {
-    background: #022c22;
-    border-color: #16a34a;
-    opacity: 0.9;
-}
-
-.habit-label {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    cursor: pointer;
-}
-
-.habit-checkbox {
-    width: 16px;
-    height: 16px;
-}
-
-.habit-name {
-    font-size: 18px;
-}
-
-.add-card {
-    margin-top: 16px;
-    margin-bottom: 12px;
-    padding: 12px 14px;
-    border-radius: 12px;
-    background: #020617;
-    border: 1px solid #1f2937;
-}
-
-.add-title {
-    margin: 0 0 8px;
-    font-size: 16px;
-    font-weight: 700;
-}
-
+/* Add */
 .add-form {
-    display: flex;
-    gap: 8px;
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
 }
 
 .add-input {
-    flex: 1;
-    padding: 8px 10px;
-    border: 1px solid #1f2937;
-    border-radius: 8px;
-    background: #020617;
-    color: #e5e7eb;
-    font-size: 14px;
+  flex: 1;
+  border-radius: 12px;
+  border: 1px solid #1f2937;
+  background: #0b1220;
+  color: #e5e7eb;
+  padding: 10px 12px;
+  font-size: 14px;
+  outline: none;
 }
 
-.add-input::placeholder {
-    color: #6b7280;
+.add-input:focus {
+  border-color: #334155;
 }
 
 .add-button {
-    padding: 8px 12px;
-    border: 1px solid #7e6bf2;
-    border-radius: 8px;
-    background: #9b8cf7;
-    color: #0d1020;
-    font-size: 13px;
-    font-weight: 700;
-    cursor: pointer;
+  border-radius: 12px;
+  border: 1px solid #1f2937;
+  background: #111827;
+  color: #e5e7eb;
+  padding: 10px 14px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.add-button:hover {
+  background: #0b1220;
 }
 
 .add-button:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
-.habit-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 8px;
+.add-help {
+  margin: 8px 0 0;
+  font-size: 11px;
+  color: #9ca3af;
 }
 
-.habit-delete {
-    background: transparent;
-    border: none;
-    color: #6b7280;
-    font-size: 14px;
-    padding: 2px 4px;
-    border-radius: 6px;
-    cursor: pointer;
-}
-
-.habit-delete:hover {
-    background: #111827;
-    color: #f97373;
-}
-
+/* Summary */
 .card-summary {
-    min-width: 160px;
-    margin-left: 12px;
+  min-width: 200px;
+  text-align: right;
 }
 
-.card-progress {
-    margin: 0 0 4px;
-    font-size: 12px;
-    color: #e5e7ed;
-    text-align: right;
+.summary-rate {
+  margin: 0;
+  font-weight: 800;
+  font-size: 18px;
 }
 
-.progress-bar {
-    width: 100%;
-    height: 6px;
-    border-radius: 8px;
-    background: #111827;
-    overflow: hidden;
+.summary-meta {
+  margin: 2px 0 6px;
+  font-size: 12px;
+  color: #9ca3af;
 }
 
-.progress-bar-inner {
-    height: 100%;
-    border-radius: inherit;
-    background: #22c55e;
-    transition: width 0.15s ease;
+.streak {
+  margin-top: 10px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
 }
 
-.habit-actions {
-    display: flex;
-    align-items: center;
-    gap: 6px;
+.streak-item {
+  border: 1px solid #1f2937;
+  border-radius: 12px;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.01);
 }
 
-.habit-edit-button {
-    background: transparent;
-    border: 1px solid #374152;
-    color: #e5e7eb;
-    font-size: 12px;
-    padding: 4px 8px;
-    border-radius: 6px;
-    cursor: pointer;
+.streak-num {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 800;
 }
 
-.habit-edit-button:hover {
-    background: #111827;
+.streak-label {
+  margin: 2px 0 0;
+  font-size: 11px;
+  color: #9ca3af;
 }
 
-.habit-edit-input {
-    flex: 1;
-    padding: 6px 8px;
-    border-radius: 8px;
-    border: 1px solid #374151;
-    background: #020617;
-    color: #e5e7eb;
-    font-size: 14px;
+.bar {
+  width: 100%;
+  height: 6px;
+  border-radius: 999px;
+  background: #111827;
+  overflow: hidden;
 }
 
-.habit-edit-actions {
-    display: flex;
-    gap: 6px;
+.bar-inner {
+  height: 100%;
+  border-radius: inherit;
+  background: #22c55e;
+  transition: width 0.15s ease;
 }
 
-.habit-edit-save,
-.habit-edit-cancel {
-    font-size: 12px;
-    padding: 4px 8px;
-    border-radius: 6px;
-    cursor: pointer;
-    border: 1px solid transparent;
-}
-
-.habit-edit-save {
-    background: #22c55e;
-    border-color: #16a34a;
-    color: #022c22;
-}
-
-.habit-edit-cancel {
-    background: transparent;
-    border-color: #4b5563;
-    color: #e5e7eb;
-}
-
-.weekly-card {
-    margin-top: 16px;
-}
-
-.weekly-header {
-    margin-bottom: 10px;
-}
-
-.weekly-title {
-    margin: 0 0 4px;
-    font-size: 16px;
-    font-weight: 700;
-}
-
-.weekly-caption {
-    margin: 0;
-    font-size: 12px;
-    color: #9ca3af;
-}
-
-.weekly-list {
-    list-style: none;
-    padding: 0;
-    margin: 8px 0 0;
-    display: grid;
-    gap: 6px;
-}
-
-.weekly-item {
-    display: grid;
-    grid-template-columns: 32px 1fr 40px;
-    align-items: center;
-    gap: 8px;
-    font-size: 12px;
-}
-
-.weekly-label {
-    color: #e5e7eb;
-}
-
-.weekly-bar {
-    position: relative;
-    height: 6px;
-    border-radius: 999px;
-    background: #111827;
-    overflow: hidden;
-}
-
-.weekly-bar-inner {
-    height: 100%;
-    border-radius: inherit;
-    background: #22c55e;
-    transition: width 0.15s ease;
-}
-
-.weekly-rate {
-    text-align: right;
-    color: #9ca3af;
-}
-
+/* Toggle */
 .hide-done-toggle {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 11px;
-    color: #9ca3af;
-    margin-top: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: #9ca3af;
+  margin-top: 8px;
+  user-select: none;
 }
 
 .hide-done-toggle input {
-    width: 12px;
-    height: 12px;
+  width: 12px;
+  height: 12px;
 }
 
+/* Habits */
+.habit-list {
+  list-style: none;
+  padding: 0;
+  margin: 10px 0 0;
+  display: grid;
+  gap: 8px;
+}
 
+.habit-item {
+  border: 1px solid #1f2937;
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.01);
+}
+
+.habit-item--done .habit-name {
+  color: #9ca3af;
+  text-decoration: line-through;
+}
+
+.habit-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.habit-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.habit-checkbox {
+  width: 16px;
+  height: 16px;
+}
+
+.habit-name {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 650;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.edit-input {
+  width: min(420px, 56vw);
+  border-radius: 10px;
+  border: 1px solid #1f2937;
+  background: #0b1220;
+  color: #e5e7eb;
+  padding: 8px 10px;
+  font-size: 14px;
+  outline: none;
+}
+
+.edit-input:focus {
+  border-color: #334155;
+}
+
+.habit-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.habit-action {
+  border: 1px solid #1f2937;
+  background: #111827;
+  color: #e5e7eb;
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.habit-action:hover {
+  background: #0b1220;
+}
+
+.habit-action.ghost {
+  background: transparent;
+  color: #9ca3af;
+}
+
+.habit-action.ghost:hover {
+  background: #111827;
+  color: #e5e7eb;
+}
+
+.habit-delete {
+  border: 1px solid #1f2937;
+  background: transparent;
+  color: #9ca3af;
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.habit-delete:hover {
+  background: #111827;
+  color: #f97373;
+}
+
+.empty {
+  margin: 10px 0 0;
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+/* Weekly */
+.weekly-grid {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.weekly-item {
+  border: 1px solid #1f2937;
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+
+.weekly-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 6px;
+}
+
+.weekly-label {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.weekly-rate {
+  margin: 0;
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .card-header--row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .card-summary {
+    text-align: left;
+    min-width: auto;
+    width: 100%;
+  }
+}
 </style>
