@@ -34,14 +34,18 @@
 ---
 
 ## 画面イメージ
-- Home（ダッシュボード）
-  - 習慣追加＋今日の達成状況
-    ./docs/home-1.png
-  - 今週の達成率
-    ./docs/home-2.png
-- History（履歴）
-  - Perfect表示
-    ./docs/history.png
+
+### Home（ダッシュボード）
+#### 習慣追加＋今日の達成状況
+![Home - 今日の達成状況](./docs/home-1.png)
+
+#### 今週の達成率
+![Home - 今週の達成率](./docs/home-2.png)
+
+### History（履歴）
+#### Perfect表示
+![History - Perfect](./docs/history.png)
+
 
 ## 技術スタック
 
@@ -107,11 +111,6 @@ npm run generate
 - 習慣の並び替え（ドラッグ&ドロップ）
 - エクスポート / インポート（JSON）
 - PWA対応（オフライン/ホーム追加）
-
-## 作者
-
-- 作成者：（あなたの名前 / ハンドル名）
-- GitHub：（URL）
 
 ## ライセンス
 
