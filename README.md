@@ -35,10 +35,13 @@
 
 ## 画面イメージ
 - Home（ダッシュボード）
-  - `docs/home-1.png`（習慣追加＋今日の達成状況）
-  - `docs/home-2.png`（今週の達成率）
+  - 習慣追加＋今日の達成状況
+    ./docs/home-1.png
+  - 今週の達成率
+    ./docs/home-2.png
 - History（履歴）
-  - `docs/history.png`（Perfect表示）
+  - Perfect表示
+    ./docs/history.png
 
 ## 技術スタック
 
